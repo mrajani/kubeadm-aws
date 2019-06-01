@@ -32,6 +32,16 @@ locals {
     "Name", "kubeadm-milpa-${var.cluster-name}",
     "kubernetes.io/cluster/${var.cluster-name}", "owned"
   )}"
+  k8s_master_tags = "${map(
+    "Name", "kubeadm-milpa-${var.cluster-name}",
+    "kubernetes.io/cluster/${var.cluster-name}", "owned",
+    "Role", "master"
+  )}"
+  k8s_worker_tags = "${map(
+    "Name", "kubeadm-milpa-${var.cluster-name}",
+    "kubernetes.io/cluster/${var.cluster-name}", "owned",
+    "Role", "worker"
+  )}"
 }
 
 resource "aws_vpc" "main" {
@@ -113,9 +123,15 @@ resource "aws_security_group" "kubernetes" {
     from_port = 0
     to_port = 0
     protocol = "-1"
-    cidr_blocks = ["10.0.0.0/16"]
+    cidr_blocks = ["10.0.0.0/8"]
   }
-
+  
+  ingress {
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["172.0.0.0/8"]
+  }
 
   egress {
     from_port = 0
@@ -127,8 +143,8 @@ resource "aws_security_group" "kubernetes" {
   tags = "${local.k8s_cluster_tags}"
 }
 
-resource "aws_iam_role" "k8s-milpa" {
-  name = "k8s-milpa"
+resource "aws_iam_role" "k8s-bcox-master" {
+  name = "k8s-bcox-master"
   assume_role_policy = <<EOF
 {
   "Version": "2012-10-17",
@@ -145,95 +161,83 @@ resource "aws_iam_role" "k8s-milpa" {
 EOF
 }
 
-resource "aws_iam_role_policy" "k8s-milpa" {
-  name = "k8s-milpa"
-  role = "${aws_iam_role.k8s-milpa.id}"
+resource "aws_iam_role_policy" "k8s-bcox-master" {
+  name = "k8s-bcox-master"
+  role = "${aws_iam_role.k8s-bcox-master.id}"
   policy = <<EOF
 {
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "ec2",
       "Effect": "Allow",
       "Action": [
-        "ec2:AuthorizeSecurityGroupIngress",
-        "ec2:CreateRoute",
+        "autoscaling:DescribeAutoScalingGroups",
+        "autoscaling:DescribeLaunchConfigurations",
+        "autoscaling:DescribeTags",
+        "ec2:DescribeInstances",
+        "ec2:DescribeRegions",
+        "ec2:DescribeRouteTables",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeVolumes",
         "ec2:CreateSecurityGroup",
         "ec2:CreateTags",
         "ec2:CreateVolume",
+        "ec2:ModifyInstanceAttribute",
+        "ec2:ModifyVolume",
+        "ec2:AttachVolume",
+        "ec2:AuthorizeSecurityGroupIngress",
+        "ec2:CreateRoute",
         "ec2:DeleteRoute",
         "ec2:DeleteSecurityGroup",
-        "ec2:DescribeAddresses",
-        "ec2:DescribeElasticGpus",
-        "ec2:DescribeImages",
-        "ec2:DescribeInstances",
-        "ec2:DescribeRouteTables",
-        "ec2:DescribeSecurityGroups",
-        "ec2:DescribeSpotPriceHistory",
-        "ec2:DescribeSubnets",
-        "ec2:DescribeTags",
-        "ec2:DescribeVolumes",
-        "ec2:DescribeVpcAttribute",
-        "ec2:DescribeVpcs",
-        "ec2:ModifyInstanceAttribute",
-        "ec2:ModifyInstanceCreditSpecification",
-        "ec2:ModifyVolume",
-        "ec2:ModifyVpcAttribute",
-        "ec2:RequestSpotInstances",
+        "ec2:DeleteVolume",
+        "ec2:DetachVolume",
         "ec2:RevokeSecurityGroupIngress",
-        "ec2:RunInstances",
-        "ec2:TerminateInstances",
-        "ecr:BatchGetImage",
-        "ecr:GetAuthorizationToken",
-        "ecr:GetDownloadUrlForLayer",
-        "elasticloadbalancing:DescribeLoadBalancerAttributes",
-        "elasticloadbalancing:DescribeLoadBalancers",
-        "elasticloadbalancing:DescribeTags",
-        "route53:ChangeResourceRecordSets",
-        "route53:CreateHostedZone",
-        "route53:GetChange",
-        "route53:ListHostedZonesByName",
-        "route53:ListResourceRecordSets"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "dynamo",
-      "Effect": "Allow",
-      "Action": [
-        "dynamodb:CreateTable",
-        "dynamodb:PutItem",
-        "dynamodb:DescribeTable",
-        "dynamodb:GetItem"
-      ],
-      "Resource": "arn:aws:dynamodb:*:*:table/MilpaClusters"
-    },
-    {
-      "Sid": "elb",
-      "Effect": "Allow",
-      "Action": [
-        "elasticloadbalancing:DeleteLoadBalancer",
-        "elasticloadbalancing:RemoveTags",
-        "elasticloadbalancing:CreateLoadBalancer",
-        "elasticloadbalancing:ConfigureHealthCheck",
+        "ec2:DescribeVpcs",
         "elasticloadbalancing:AddTags",
+        "elasticloadbalancing:AttachLoadBalancerToSubnets",
         "elasticloadbalancing:ApplySecurityGroupsToLoadBalancer",
+        "elasticloadbalancing:CreateLoadBalancer",
+        "elasticloadbalancing:CreateLoadBalancerPolicy",
+        "elasticloadbalancing:CreateLoadBalancerListeners",
+        "elasticloadbalancing:ConfigureHealthCheck",
+        "elasticloadbalancing:DeleteLoadBalancer",
         "elasticloadbalancing:DeleteLoadBalancerListeners",
+        "elasticloadbalancing:DescribeLoadBalancers",
+        "elasticloadbalancing:DescribeLoadBalancerAttributes",
+        "elasticloadbalancing:DetachLoadBalancerFromSubnets",
         "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
-        "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
         "elasticloadbalancing:ModifyLoadBalancerAttributes",
-        "elasticloadbalancing:CreateLoadBalancerListeners"
+        "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
+        "elasticloadbalancing:SetLoadBalancerPoliciesForBackendServer",
+        "elasticloadbalancing:AddTags",
+        "elasticloadbalancing:CreateListener",
+        "elasticloadbalancing:CreateTargetGroup",
+        "elasticloadbalancing:DeleteListener",
+        "elasticloadbalancing:DeleteTargetGroup",
+        "elasticloadbalancing:DescribeListeners",
+        "elasticloadbalancing:DescribeLoadBalancerPolicies",
+        "elasticloadbalancing:DescribeTargetGroups",
+        "elasticloadbalancing:DescribeTargetHealth",
+        "elasticloadbalancing:ModifyListener",
+        "elasticloadbalancing:ModifyTargetGroup",
+        "elasticloadbalancing:RegisterTargets",
+        "elasticloadbalancing:SetLoadBalancerPoliciesOfListener",
+        "iam:CreateServiceLinkedRole",
+        "kms:DescribeKey"
       ],
-      "Resource": "arn:aws:elasticloadbalancing:*:*:loadbalancer/milpa-*"
+      "Resource": [
+        "*"
+      ]
     }
   ]
 }
 EOF
 }
 
-resource  "aws_iam_instance_profile" "k8s-milpa" {
-  name = "k8s-milpa"
-  role = "${aws_iam_role.k8s-milpa.name}"
+resource  "aws_iam_instance_profile" "k8s-bcox-master" {
+  name = "k8s-bcox-master"
+  role = "${aws_iam_role.k8s-bcox-master.name}"
 }
 
 data "template_file" "master-userdata" {
@@ -269,11 +273,12 @@ resource "aws_instance" "k8s-master" {
   key_name = "${var.ssh-key-name}"
   associate_public_ip_address = true
   vpc_security_group_ids = ["${aws_security_group.kubernetes.id}"]
-  iam_instance_profile = "${aws_iam_instance_profile.k8s-milpa.id}"
-
+  iam_instance_profile = "${aws_iam_instance_profile.k8s-bcox-master.id}"
+  source_dest_check = false
+  
   depends_on = ["aws_internet_gateway.gw"]
 
-  tags = "${local.k8s_cluster_tags}"
+  tags = "${local.k8s_master_tags}"
 }
 
 resource "aws_instance" "k8s-worker" {
@@ -284,9 +289,10 @@ resource "aws_instance" "k8s-worker" {
   key_name = "${var.ssh-key-name}"
   associate_public_ip_address = true
   vpc_security_group_ids = ["${aws_security_group.kubernetes.id}"]
-  iam_instance_profile = "${aws_iam_instance_profile.k8s-milpa.id}"
-
+  iam_instance_profile = "${aws_iam_instance_profile.k8s-bcox-master.id}"
+  source_dest_check = false
+  
   depends_on = ["aws_internet_gateway.gw"]
 
-  tags = "${local.k8s_cluster_tags}"
+  tags = "${local.k8s_worker_tags}"
 }
