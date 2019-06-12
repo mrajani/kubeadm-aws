@@ -15,6 +15,23 @@ modprobe br_netfilter
 sysctl net.bridge.bridge-nf-call-iptables=1
 sysctl net.ipv4.ip_forward=1
 
+cat <<EOF > /tmp/kubeadm-config.yaml
+apiVersion: kubeadm.k8s.io/v1beta1
+kind: JoinConfiguration
+discovery:
+  bootstrapToken:
+    token: ${k8stoken}
+    unsafeSkipCAVerification: true
+    apiServerEndpoint: ${masterIP}:6443
+nodeRegistration:
+  name: $(hostname -f)
+#  criSocket: /opt/milpa/run/kiyot.sock
+  kubeletExtraArgs:
+    cloud-provider: aws
+    max-pods: "1000"
+EOF
+
+
 # wget https://download.elotl.co/milpa-installer-latest
 # chmod 755 milpa-installer-latest
 # ./milpa-installer-latest
@@ -26,7 +43,8 @@ sysctl net.ipv4.ip_forward=1
 # mkdir -p /etc/systemd/system/kubelet.service.d/
 # echo -e "[Service]\nStartLimitInterval=0\nStartLimitIntervalSec=0\nRestart=always\nRestartSec=5" > /etc/systemd/system/kubelet.service.d/override.conf
 
-for i in {1..50}; do kubeadm join --discovery-token-unsafe-skip-ca-verification --token=${k8stoken} ${masterIP}:6443 --node-name=$(hostname -f) && break || sleep 15; done
+#for i in {1..50}; do kubeadm join --discovery-token-unsafe-skip-ca-verification --token=${k8stoken} ${masterIP}:6443 --node-name=$(hostname -f) && break || sleep 15; done
+for i in {1..50}; do kubeadm join --config=/tmp/kubeadm-config.yaml && break || sleep 15; done
 
 echo "KUBELET_KUBEADM_ARGS=--cloud-provider=aws --cgroup-driver=cgroupfs --pod-infra-container-image=k8s.gcr.io/pause:3.1 --network-plugin=cni --hostname-override=$(hostname).ec2.internal" > /var/lib/kubelet/kubeadm-flags.env
 
