@@ -311,7 +311,8 @@ resource "aws_iam_role_policy" "k8s-milpa-worker" {
         "ec2:TerminateInstances",
         "ecr:BatchGetImage",
         "ecr:GetAuthorizationToken",
-        "ecr:GetDownloadUrlForLayer"
+        "ecr:GetDownloadUrlForLayer",
+        "iam:CreateServiceLinkedRole"
       ],
       "Resource": "*"
     }
